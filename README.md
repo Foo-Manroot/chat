@@ -11,3 +11,12 @@ Modo de uso (si se introducen mal los argumentos, se avisa):
 		
 		Servidor:
 			./servidor puerto_escucha
+			
+			
+Errores conocidos:
+
+		A veces el cliente se queda esperando a que el servidor termine la conexión, pero este último 
+	falla y termina de ejecutarse, obligando a matar el proceso del cliente.
+	
+		Puede que la desconexión de los clientes no se maneje de manera adecuada (no se borran adecuadamente
+	los descriptores de los clientes que se desconectan).
