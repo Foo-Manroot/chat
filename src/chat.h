@@ -1,4 +1,6 @@
 /* chat.h */
+#ifndef CHAT_H
+#define CHAT_H
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -39,3 +41,19 @@ typedef struct {
 
 //	pthread_mutex mutex;		/* Semáforo para controlar el acceso a los atributos de la estructura */
 } datos_hilo;
+
+
+/*
+ * error return values
+ * all the queue manipulation functions return these;
+ * you can interpret them yourself, or print the error
+ * message in qe_errbuf, which describes these codes
+ */
+#define CAL_ERROR(x)			((x) < 0)	/* Es 1 si se ha producido algún error y 0 si no. */
+#define CAL_NOERR		 	0		/* Sin errores */
+
+/* Definiciones de errores específicos de esta aplicación */
+#define CAL_ERR_CON	-1	/* Error al conectar */
+#define CAL_ERR_INI	-2	/* Error al crear e inicializar estructuras */
+
+#endif

@@ -74,7 +74,7 @@ void eliminar_cliente(datos_hilo *datos, int i, char* user)
 			index_aux++;
 		}
 	}
-	
+
 	/* Se libera el contenido anterior, pues ya no se va a necesitar más */
 	datos->fds = (struct pollfd *) realloc(datos->fds, (datos->clientes + 1) * sizeof(struct pollfd));
 	datos->fds_es = (int *) realloc(datos->fds_es, (datos->clientes + 1) * sizeof(int));
@@ -133,6 +133,9 @@ void *polling (void *pv)
 				}
 
 		}
+
+		/* Duerme 1 segundo antes de volver a sondear para evitar la sobrecarga */
+		sleep (1);
 	}
 
 	return 0;

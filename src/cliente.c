@@ -173,10 +173,9 @@ int main(int argc, char *argv[])
 	if (connect(datos.sock_es, (struct sockaddr *)&server, sizeof(server)) < 0)
 	{
 		printf("Error al intentar conectarse al socket de lectura del servidor. \n");
-
 		close(sock_escucha);
 		close(datos.sock_es);
-		return -2;
+		return CAL_ERR_CON;
 	}
 
 
@@ -244,7 +243,21 @@ int main(int argc, char *argv[])
 	listen(sock_escucha, 5);
 
 	/* Se acepta la conexión del servidor */
-	datos.sock_lec = accept(sock_escucha, (struct sockaddr *)&datos.client, &addrlen);
+	if ( (datos.sock_lec = accept(sock_escucha, (struct sockaddr *)&datos.client, &addrlen)) < 0)
+	{
+		printf("Error al intentar cerrar la conexión\n.");
+
+		close(sock_escucha);
+		close(sock_es);
+		close(sock_lec);
+
+		return -3;
+	}
+
+	/* ATENCIÓN:
+		Hay que añadir un sondeo del socket para que, si no se ha conseguido
+		conectar en menos de 'x' segundos, se desista y se informe.
+	 */
 
 	sock_lec = datos.sock_lec; /* Se incializa la variable global para poder cerrar el socket luego */
 
