@@ -285,13 +285,15 @@ int main(int argc, char *argv[])
 		/* Se incrementa el número de clientes conectados */
 		datos.clientes++;
 
-		/* se crea el hilo encargado de sondear los descriptores */
-		if (pthread_create(&hilos[0], 0, polling, &datos) != 0)
-		{
-			printf("Error al crear el hilo nº 0");
-			return -4;
-		}
-
+		/* Sólo se crea un hilo cuando se conecta el primer cliente (para evitar que
+		se cree un hilo por cliente, sobrecargando el sistema) */
+		if (datos.clientes == 2) /* 2 "clientes": stdout y el cliente */
+			/* Se crea el hilo encargado de sondear los descriptores */
+			if (pthread_create(&hilos[0], 0, polling, &datos) != 0)
+			{
+				printf("Error al crear el hilo nº 0");
+				return -4;
+			}
 	}
 
 	close(datos.sock_es);

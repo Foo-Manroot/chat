@@ -2,8 +2,6 @@ GCC = gcc -g -Wall
 THR = gcc -g -Wall -pthread -lpthread
 OBJ = gcc -g -c -Wall
 
-.PHONY: clean all
-
 all: servidor cliente
 
 servidor: servidor.o
@@ -19,6 +17,7 @@ cliente: cliente.o
 cliente.o: cliente.c
 	$(OBJ) cliente.c -o cliente.o
 
+rebuild: clean all
 
 clean:
 	rm -f *.o
