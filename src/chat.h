@@ -1,7 +1,14 @@
 /* chat.h */
 #ifndef CHAT_H
 #define CHAT_H
+	#include <iostream>
+	#include <sstream>
+	#include <stdlib.h>
+	#include <string>
 
+	#include "list.h"
+
+/* Taken from CAL-v3's chat.h */
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
@@ -22,7 +29,8 @@
 
 #define BUFF_SIZE 2048 /* Tamaño del buffer para leer y escribir */
 
-typedef struct {
+typedef struct
+{
 	struct sockaddr_in client;	/* Estructura con la información del cliente */
 
 	char *user;			/* Nombre de usuario (para identificar los mensajes) */
@@ -33,27 +41,29 @@ typedef struct {
 
 	int sock_es;			/* Socket para la escritura */
 
-	struct pollfd *fds;		/* Array para poll() (para el servidor) */
+        List <struct pollfd> clientes;	/* Lista con los clientes conectados para poll() (para el servidor) */
 
-	int *fds_es;			/* Array para escribir en el resto de sockets */
-
-	int clientes;			/* Contador del número de descriptores en el array "fds" */
-
-//	pthread_mutex mutex;		/* Semáforo para controlar el acceso a los atributos de la estructura */
+        List < int > sockets_es ;	/* Lista con los sockets de escritura */
 } datos_hilo;
 
 
-/*
- * error return values
- * all the queue manipulation functions return these;
- * you can interpret them yourself, or print the error
- * message in qe_errbuf, which describes these codes
- */
-#define CAL_ERROR(x)			((x) < 0)	/* Es 1 si se ha producido algún error y 0 si no. */
-#define CAL_NOERR		 	0		/* Sin errores */
 
-/* Definiciones de errores específicos de esta aplicación */
-#define CAL_ERR_CON	-1	/* Error al conectar */
-#define CAL_ERR_INI	-2	/* Error al crear e inicializar estructuras */
+	using namespace std;
+
+
+	/*******************************/
+	/* Definition of custom errors */
+	/*******************************/
+
+	/* List related errors */
+//	#define LIST_ERROR(x)			((x) < 0)	/* "true" if it's a list error  */
+//	#define LIST_NOERROR			0		/* No errors */
+
+	/* Errors specifiers */
+//	#define LIST_ERR_INDEX		-1	/* The specified index doesn't exists on this list */
+//	#define LIST_ERR_NOT_FOUND	-2	/* The searched item is not in the list */
+
+	/* Generic errors */
+//	#define UNKNOWN_ERR		-10	/* An error which cause is unknown */
 
 #endif
