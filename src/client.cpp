@@ -46,12 +46,17 @@ void *escritura_socket(void *pv)
 	datos_hilo *datos = (datos_hilo *) pv;
 
 	char lectura[BUFF_SIZE];
-	char *mensaje;
+	string aux;
+	ostringstream mensaje;
 	int r_val;
 
 	/* Una vez se ha conectado correctamente, se comienza el intercambio de información. */
         while (1)
 	{
+		/* Vacía el contenido de la cadena */
+		mensaje.str ("");
+		mensaje.clear ();
+
                 if ((r_val = read(0, lectura, BUFF_SIZE)) < 0)
 		{
                         printf("Error al leer datos del teclado. \n");
@@ -60,18 +65,12 @@ void *escritura_socket(void *pv)
                   	break;
                 }
 
-                /* Se reserva memoria para poder el mensaje de tal manera que aparezca como
-                "nombre_cliente: mensaje" */
-                mensaje = (char *)malloc(r_val + strlen(datos->user));
-
                 /* Se copia la información en el mensaje */
-	  	strcpy(mensaje, "\t\t");
-                strncat(mensaje, datos->user, strlen(datos->user));
-                strncat(mensaje, ": ", 2);
-                strncat(mensaje, lectura, r_val);
+		aux.assign (lectura, r_val);
+		mensaje << "\t\t" << datos->user << ": " << aux;
 
                 /* Se envía a través del socket */
-                if (write(datos->sock_es, mensaje, strlen(mensaje)) < 0)
+                if (write(datos->sock_es, mensaje.str().c_str (), mensaje.str().size ()) < 0)
 		{
                         printf("Error al escribir en el socket. \n");
 
@@ -79,7 +78,7 @@ void *escritura_socket(void *pv)
 			break;
                 }
 
-                free(mensaje);
+		mensaje.str().erase (0, mensaje.str().size ());
         }
 
 	close(datos->sock_es);
@@ -142,7 +141,7 @@ int main(int argc, char *argv[])
 	sock_es = datos.sock_es; /* Se incializa la variable global para poder cerrar el socket luego */
 
 	/*Cambia del formato notación de punto a formato binario*/
-	if( (addr = inet_addr(argv[1])) == -1)
+	if( (addr = inet_addr(argv[1])) == INADDR_NONE)
 	{
 		printf("La dirección IP debe estar en notación x.x.x.x \n");
 
@@ -173,9 +172,10 @@ int main(int argc, char *argv[])
 	if (connect(datos.sock_es, (struct sockaddr *)&server, sizeof(server)) < 0)
 	{
 		printf("Error al intentar conectarse al socket de lectura del servidor. \n");
+
 		close(sock_escucha);
 		close(datos.sock_es);
-		return CAL_ERR_CON;
+		return -2;
 	}
 
 
@@ -243,21 +243,7 @@ int main(int argc, char *argv[])
 	listen(sock_escucha, 5);
 
 	/* Se acepta la conexión del servidor */
-	if ( (datos.sock_lec = accept(sock_escucha, (struct sockaddr *)&datos.client, &addrlen)) < 0)
-	{
-		printf("Error al intentar cerrar la conexión\n.");
-
-		close(sock_escucha);
-		close(sock_es);
-		close(sock_lec);
-
-		return -3;
-	}
-
-	/* ATENCIÓN:
-		Hay que añadir un sondeo del socket para que, si no se ha conseguido
-		conectar en menos de 'x' segundos, se desista y se informe.
-	 */
+	datos.sock_lec = accept(sock_escucha, (struct sockaddr *)&datos.client, &addrlen);
 
 	sock_lec = datos.sock_lec; /* Se incializa la variable global para poder cerrar el socket luego */
 

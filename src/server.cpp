@@ -1,41 +1,34 @@
 /* servidor.c */
 
 #include "chat.h"
+#include "list.h"
 
 /* Recorre todo el array de descriptores escribiendo el mensaje contenido en "buffer"
    en todos los sockets salvo en el que esté en la posición "excluido" */
-void escribir(datos_hilo *datos, char buffer[], int r_val, int excluido)
+void escribir(datos_hilo *datos, string buffer, int r_val, int excluido)
 {
 	int i;
-	char *mensaje;
+	ostringstream mensaje;
 
 	/* Si el descriptor excluido es el 0 (stdout) significa que el mensaje proviene del servidor (stdin) */
 	if (excluido == 0)
 	{
-		/* Se reserva memoria para poder el mensaje de tal manera que aparezca como
-		"\t\tnombre: mensaje" */
-		mensaje = (char *)malloc(r_val + strlen(datos->user));
-
-		/* Se copia la información en el mensaje */
-		strcpy(mensaje, datos->user);
-		strncat(mensaje, ": ", 2);
-		strncat(mensaje, buffer, r_val);
-
+		mensaje << datos->user << ": " << buffer.substr (0, r_val);
 
 		/* Se escribe en el resto de descriptores */
-		for (i = 1; i < datos->clientes; i++)
+		for (i = 1; i < datos->clientes.num_elem (); i++)
 		{
-			write (datos->fds_es[i], mensaje, strlen(mensaje));
+			write (datos->sockets_es.get_elem (i), mensaje.str().c_str (), mensaje.str().length ());
 		}
 	}
 	else
 	{
 		/* Escribe los sockets de escritura */
-		for (i = 0; i < datos->clientes; i++)
+		for (i = 0; i < datos->clientes.num_elem (); i++)
 		{
 			if (i != excluido)
 			{
-				write (datos->fds_es[i], buffer, r_val);
+				write (datos->sockets_es.get_elem (i), buffer.c_str (), r_val);
 			}
 		}
 	}
@@ -45,45 +38,20 @@ void escribir(datos_hilo *datos, char buffer[], int r_val, int excluido)
 /* Elimina el cliente nº i de los arrays de descriptores */
 void eliminar_cliente(datos_hilo *datos, int i, char* user)
 {
-	int index, index_aux;
-	struct pollfd *aux;
-	int *aux_es;
-
 	printf("\n----------------------------------------\n");
 	printf("%s desconectado.\n", user);
 
-	/* Se reduce el número de clientes conectados */
-	datos->clientes--;
-
 	/* Se cierran los sockets */
-	close(datos->fds[i].fd);
-	close(datos->fds_es[i]);
+	close(datos->clientes.get_elem (i).fd);
+	close(datos->sockets_es.get_elem (i));
 
-	/* Se reserva memoria para los arrays auxiliares (datos->clientes empieza a contar en 0) */
-	aux = (struct pollfd*) malloc(sizeof(struct pollfd) * (datos->clientes + 1));
-	aux_es = (int*) malloc(sizeof(int) * (datos->clientes + 1));
-
-	/* Se copia todo salvo los descriptores que se acaba de cerrar */
-	for (index = 0, index_aux = 0; index < datos->clientes + 1; index++)
-	{
-		if (index != i)
-		{
-			aux[index_aux] = datos->fds[index];
-			aux_es[index_aux] = datos->fds_es[index];
-
-			index_aux++;
-		}
-	}
-
-	/* Se libera el contenido anterior, pues ya no se va a necesitar más */
-	datos->fds = (struct pollfd *) realloc(datos->fds, (datos->clientes + 1) * sizeof(struct pollfd));
-	datos->fds_es = (int *) realloc(datos->fds_es, (datos->clientes + 1) * sizeof(int));
-
-	/* Ahora los punteros de los arrays apuntan a otros con el descritpor borrado */
-	datos->fds = aux;
-	datos->fds_es = aux_es;
+	/* Se eliminan los sockets */
+	if (LIST_ERROR(datos->clientes.del_index (i)) ||
+	    LIST_ERROR (datos->sockets_es.del_index (i)) )
+		cout << "Error al eliminar el elemento de la lista.\n";
 
 	printf("Conexión cerrada completamente.\n");
+	cout << "Quedan " << (datos->clientes.num_elem () - 1) << " clientes conectados.\n";
 	printf("----------------------------------------\n\n");
 }
 
@@ -95,11 +63,20 @@ void *polling (void *pv)
 
 	int ret_val, read_val, i;
 	char buffer[BUFF_SIZE];
+	struct pollfd *aux;
 
 	/* Bucle para sondear */
 	while (1)
 	{
-		ret_val = poll(datos->fds, datos->clientes, 0);
+		/* Se reserva memoria para el array auxiliar */
+		aux = (struct pollfd *) malloc (sizeof (struct pollfd) * datos->clientes.size ());
+
+		/* Se rellena el array auxiliar */
+		for (int j = 0; j < datos->clientes.size (); j++)
+			aux[j] = datos->clientes.get_elem (j);
+
+
+		ret_val = poll (aux, datos->clientes.num_elem (), 0);
 
 		switch (ret_val)
 		{
@@ -113,12 +90,12 @@ void *polling (void *pv)
 
 			default:
 				/* Recorre el array de descriptores de lectura para buscar los descriptores activos */
-				for (i = 0; i < datos->clientes; i++)
+				for (i = 0; i < datos->clientes.num_elem (); i++)
 				{
-					if (datos->fds[i].revents & POLLIN)
+					if (aux[i].revents & POLLIN)
 					{
 						/* Se lee la información y se escribe en los sockets de escritura */
-						read_val = read(datos->fds[i].fd, buffer, BUFF_SIZE);
+						read_val = read (datos->clientes.get_elem (i).fd, buffer, BUFF_SIZE);
 
 						/* Si lo recibido por el cliente es "FIN" (sin "\n"), se cierra ese socket */
 						if (strcmp(buffer, "FIN") == 0)
@@ -131,11 +108,11 @@ void *polling (void *pv)
 						}
 					}
 				}
-
 		}
 
 		/* Duerme 1 segundo antes de volver a sondear para evitar la sobrecarga */
 		sleep (1);
+		free (aux);
 	}
 
 	return 0;
@@ -149,26 +126,23 @@ int main(int argc, char *argv[])
 	    opcion = 1;
 	unsigned int addrlen = sizeof(struct sockaddr_in);
 	struct sockaddr_in server;
+	struct pollfd aux;
 	char *user = "\t\tServidor";
 	/* Variable para los hilos (uno para leer y otro para escribir) */
 	datos_hilo datos;
 	datos.num_hilos = 1;
 	pthread_t hilos[datos.num_hilos];
-	datos.clientes = 0;
 
-	/* Reserva memoria para ambas estructuras */
-	datos.fds = (struct pollfd *) malloc(sizeof(struct pollfd));
-	datos.fds_es = (int *) malloc(sizeof(int));
+	/* Inicializa la lista */
+	datos.clientes = List <struct pollfd> ();
 
 	/* El "cliente" nº 1 es stdout para escritura y stdin para lectura */
-	datos.fds[datos.clientes].fd = 0;
-	datos.fds[datos.clientes].events = POLLIN;
+	aux.fd = 0;			/* Inicializa los datos a una estructura auxiliar y añade la información a la lista */
+	aux.events = POLLIN;
+	datos.clientes.add (aux);
 
-	datos.fds_es[datos.clientes] = 1;
+	datos.sockets_es.add (1);
 
-
-	/* Se incrementa el número de clientes conectados */
-	datos.clientes++;
 
 	/* Llamada correcta:
 		(nombre programa) nº_puerto */
@@ -237,7 +211,7 @@ int main(int argc, char *argv[])
 		/* Una vez aceptada la conexión, el servidor se conecta al socket de lectura del cliente */
 		printf("\n\n++++++++++++++++++++++++++++++++++++++++\n");
 		printf("Cliente conectado. \n");
-		printf("Hay %i clientes conectados.\n", datos.clientes);
+		printf("Hay %i clientes conectados.\n", datos.clientes.num_elem ());
 
 		/* Se crea el socket de escritura */
 		if ((datos.sock_es = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -273,24 +247,23 @@ int main(int argc, char *argv[])
 		}
 
 		/* Se añaden los descriptores al array para poll() */
-		/* Reserva memoria para ambas estructuras */
-		datos.fds = (struct pollfd *) realloc(datos.fds, (datos.clientes + 1) * sizeof(struct pollfd));
-		datos.fds_es = (int *) realloc(datos.fds_es, (datos.clientes + 1) * sizeof(int));
+		aux.fd = datos.sock_lec;
+		aux.events = POLLIN;
 
-		datos.fds[datos.clientes].fd = datos.sock_lec;
-		datos.fds[datos.clientes].events = POLLIN;
+		datos.clientes.add (aux);
 
-		datos.fds_es[datos.clientes] = datos.sock_es;
+		datos.sockets_es.add (datos.sock_es);
 
-		/* Se incrementa el número de clientes conectados */
-		datos.clientes++;
 
-		/* se crea el hilo encargado de sondear los descriptores */
-		if (pthread_create(&hilos[0], 0, polling, &datos) != 0)
-		{
-			printf("Error al crear el hilo nº 0");
-			return -4;
-		}
+		/* Sólo se crea un hilo cuando se conecta el primer cliente (para evitar que
+		se cree un hilo por cliente, sobrecargando el sistema) */
+		if (datos.clientes.size () == 2) /* 2 "clientes": stdout y el cliente */
+			/* se crea el hilo encargado de sondear los descriptores */
+			if (pthread_create(&hilos[0], 0, polling, &datos) != 0)
+			{
+				printf("Error al crear el hilo nº 0");
+				return -4;
+			}
 
 	}
 

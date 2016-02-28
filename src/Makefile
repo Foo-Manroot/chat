@@ -1,26 +1,41 @@
-GCC = gcc -g -Wall
-THR = gcc -g -Wall -pthread -lpthread
-OBJ = gcc -g -c -Wall
+CXX = g++
+CXXFLAGS = -Wall -pthread -lpthread
 
-.PHONY: clean all
+# Default rule: builds just server and client
+chat: client server
 
-all: servidor cliente
+# Builds everything
+all: main client server
 
-servidor: servidor.o
-	$(THR) servidor.o -o servidor
-
-servidor.o: servidor.c
-	$(OBJ) servidor.c -o servidor.o
-
-
-cliente: cliente.o
-	$(THR) cliente.o -o cliente
-
-cliente.o: cliente.c
-	$(OBJ) cliente.c -o cliente.o
+# Rules for individual files:
+# ---------------------------------------------------------------
+main: main.o
+	$(CXX) $(CXXFLAGS) -o main main.o
 
 
+# Client executable
+client: client.o
+	$(CXX) $(CXXFLAGS) -o client client.o
+
+# Server executable
+server: server.o
+	$(CXX) $(CXXFLAGS) -o server server.o
+
+# Object files
+client.o: chat.h list.h
+main.o: chat.h list.h
+server.o: chat.h list.h
+
+# ---------------------------------------------------------------
+
+
+# This rule forces the project to being cleaned
+# and builds everything again
+rebuild: clean all
+
+# Removes all .o files and the executables generated
 clean:
-	rm -f *.o
-	rm -f servidor
-	rm -f cliente
+	rm -fv *.o
+	rm -fv main
+	rm -fv client
+	rm -fv server
