@@ -20,7 +20,6 @@ server: server.o
 
 # Object files
 client.o: chat.h list.h
-main.o: chat.h list.h
 server.o: chat.h list.h
 
 # ---------------------------------------------------------------
