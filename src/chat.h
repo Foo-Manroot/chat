@@ -1,7 +1,12 @@
 /* chat.h */
 #ifndef CHAT_H
 #define CHAT_H
+	#include <iostream>
+	#include <sstream>
+	#include <stdlib.h>
+	#include <string>
 
+<<<<<<< HEAD
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -9,6 +14,9 @@
 #include <string>
 
 #include "list.h"
+=======
+	#include "list.h"
+>>>>>>> d8444c6fcd9b958d023cd0af362f0a93642c462d
 
 /* Taken from CAL-v3's chat.h */
 #include <arpa/inet.h>
@@ -44,6 +52,7 @@ typedef struct
 	int sock_es;			/* Socket para la escritura */
 
         List <struct pollfd> clientes;	/* Lista con los clientes conectados para poll() (para el servidor) */
+<<<<<<< HEAD
 
         List < int > sockets_es ;	/* Lista con los sockets de escritura */
 } datos_hilo;
@@ -57,6 +66,21 @@ typedef struct
 	/* Definition of custom errors */
 	/*******************************/
 
+=======
+
+        List < int > sockets_es ;	/* Lista con los sockets de escritura */
+} datos_hilo;
+
+
+
+	using namespace std;
+
+
+	/*******************************/
+	/* Definition of custom errors */
+	/*******************************/
+
+>>>>>>> d8444c6fcd9b958d023cd0af362f0a93642c462d
 	/* List related errors */
 //	#define LIST_ERROR(x)			((x) < 0)	/* "true" if it's a list error  */
 //	#define LIST_NOERROR			0		/* No errors */

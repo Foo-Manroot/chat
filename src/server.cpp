@@ -3,43 +3,9 @@
 #include "chat.h"
 #include "list.h"
 
-/* Returns current date/time, with format dd-MM-YYYY.HH:mm:ss */
-const string get_date ()
-{
-	time_t now = time(0);
-	struct tm  tstruct;
-	char buf[80];
-	tstruct = *localtime (&now);
-
-	/* Gives the apropiate format to the string */
-	strftime (buf, sizeof (buf), "%d-%m-%Y.%X", &tstruct);
-
-	return buf;
-}
-
-
-/* Prints a string on the screen and adds it to a text file */
-void log (string text)
-{
-	ofstream output;
-
-	/* Opens the log file and saves the text */
-	output.open ("server.log", ofstream::app | ofstream::out);
-
-	output << "\n+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-";
-	output << "\n" << get_date () << "\n";
-	output << text;
-	output << "\n+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-";
-
-	output.close ();
-
-	/* Prints the text on the screen (stdout) */
-	cout << text;
-}
-
 /* Recorre todo el array de descriptores escribiendo el mensaje contenido en "buffer"
    en todos los sockets salvo en el que esté en la posición "excluido" */
-void escribir (datos_hilo *datos, string buffer, int r_val, int excluido)
+void escribir(datos_hilo *datos, string buffer, int r_val, int excluido)
 {
 	int i;
 	ostringstream mensaje;
@@ -70,12 +36,10 @@ void escribir (datos_hilo *datos, string buffer, int r_val, int excluido)
 
 
 /* Elimina el cliente nº i de los arrays de descriptores */
-void eliminar_cliente (datos_hilo *datos, int i, string user)
+void eliminar_cliente(datos_hilo *datos, int i, char* user)
 {
-	ostringstream text;
-
-	text << "\n----------------------------------------\n";
-	text << user << " desconectado.\n";
+	printf("\n----------------------------------------\n");
+	printf("%s desconectado.\n", user);
 
 	/* Se cierran los sockets */
 	close(datos->clientes.get_elem (i).fd);
@@ -84,20 +48,17 @@ void eliminar_cliente (datos_hilo *datos, int i, string user)
 	/* Se eliminan los sockets */
 	if (LIST_ERROR(datos->clientes.del_index (i)) ||
 	    LIST_ERROR (datos->sockets_es.del_index (i)) )
-		text << "Error al eliminar el elemento de la lista.\n";
+		cout << "Error al eliminar el elemento de la lista.\n";
 
-	text << "Conexión cerrada completamente.\n";
-	text << "Quedan " << (datos->clientes.num_elem () - 1) << " clientes conectados.\n";
-	text << "----------------------------------------\n\n";
-
-	log (text.str ());
+	printf("Conexión cerrada completamente.\n");
+	cout << "Quedan " << (datos->clientes.num_elem () - 1) << " clientes conectados.\n";
+	printf("----------------------------------------\n\n");
 }
 
 
 /* Manejador para el hilo encargado de sondear los descriptores */
 void *polling (void *pv)
 {
-	ostringstream log_text;
 	datos_hilo *datos = (datos_hilo *)pv;
 
 	int ret_val, read_val, i;
@@ -124,12 +85,7 @@ void *polling (void *pv)
 				break;
 
 			case -1:
-				/* Vacía el contenido de la cadena */
-				log_text.str ("");
-				log_text.clear ();
-
-				log_text << "Error al sondear los descriptores. \n";
-				log (log_text.str ());
+				printf("Error al sondear los descriptores. \n");
 				break;
 
 			default:
@@ -166,23 +122,16 @@ void *polling (void *pv)
 
 int main(int argc, char *argv[])
 {
-	ostringstream log_text;
-	int sock_escucha,
-	    puerto_cli,
-	    c,
+	int sock_escucha, puerto_cli, i, c,
 	    opcion = 1;
-	unsigned int addrlen = sizeof(struct sockaddr_in),
-		     i;
-
+	unsigned int addrlen = sizeof(struct sockaddr_in);
 	struct sockaddr_in server;
 	struct pollfd aux;
-	string user = "\t\tServidor";
-
+	char *user = "\t\tServidor";
 	/* Variable para los hilos (uno para leer y otro para escribir) */
 	datos_hilo datos;
 	datos.num_hilos = 1;
 	pthread_t hilos[datos.num_hilos];
-	/* Fin de la declaración de variables */
 
 	/* Inicializa la lista */
 	datos.clientes = List <struct pollfd> ();
@@ -199,27 +148,22 @@ int main(int argc, char *argv[])
 		(nombre programa) nº_puerto */
 	if (argc != 2)
 	{
-		log_text << "Error. Llamada correcta: \n"
-			<< argv[0] << " nº puerto \n";
-		log (log_text.str ());
-
+		printf("Error. Llamada correcta: \n"
+			"%s nº_puerto \n", argv[0]);
 		return -1;
 	}
 
 	/* Se crea el socket de escucha */
 	if ((sock_escucha = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		log_text << "Error al crear el socket. \n";
-		log (log_text.str ());
-
+		printf("Error al crear socket.\n");
 		return -2;
 	}
 
 	/* Para reutilizar el puerto inmediatamente */
 	if (setsockopt(sock_escucha, SOL_SOCKET, SO_REUSEADDR, &opcion, sizeof(opcion)) < 0)
 	{
-		log_text << "Error en setsockopt (). \n";
-		log (log_text.str ());
+                printf("Error en setsockopt");
 
 		close(sock_escucha);
 		return -2;
@@ -233,20 +177,14 @@ int main(int argc, char *argv[])
 	/* Se asigna la dirección al socket de lectura */
 	if (bind(sock_escucha, (struct sockaddr *)&server, sizeof(server)) < 0)
 	{
-		log_text << "Error al asignar una dirección al socket de lectura. \n";
-		log (log_text.str ());
+		printf("Error al asignar una dirección al socket de lectura. \n");
 
 		close(sock_escucha);
 		return -2;
 	}
 
-	/* Vacía el contenido de la cadena */
-	log_text.str ("");
-	log_text.clear ();
-
 	/* Se muestra un mensaje para hacer saber que se ha creado el servidor */
-	log_text << "Servidor creado con éxito en el puerto " << ntohs (server.sin_port)  <<"\n";
-	log (log_text.str ());
+	printf("Servidor creado con éxito en el puerto %i. \n", ntohs(server.sin_port));
 
 	/* Se inicializa el dato para identificar la procedencia los mensajes */
 	datos.user = user;
@@ -257,43 +195,29 @@ int main(int argc, char *argv[])
 	/* Bucle para esperar a las conexiones */
 	while(1)
 	{
-		/* Vacía el contenido de la cadena */
-		log_text.str ("");
-		log_text.clear ();
-
 		/* Se acepta la conexión del cliente */
 		datos.sock_lec = accept(sock_escucha, (struct sockaddr *)&datos.client, &addrlen);
 
 		if (datos.sock_lec < 0)
 		{
-			log_text << "Conexión rechazada. \n";
-			log (log_text.str ());
+			perror("Conexión rechazada. \n");
 
+			close(sock_escucha);
+			close(datos.sock_es);
 			close(datos.sock_lec);
-			continue;
+			return -2;
 		}
 
 		/* Una vez aceptada la conexión, el servidor se conecta al socket de lectura del cliente */
-		log_text << "\n\n++++++++++++++++++++++++++++++++++++++++\n";
-		log_text << "Cliente conectado. \n";
-		log_text << "Hay " << datos.clientes.size () << " clientes conectados.\n";
-
-		log (log_text.str ());
+		printf("\n\n++++++++++++++++++++++++++++++++++++++++\n");
+		printf("Cliente conectado. \n");
+		printf("Hay %i clientes conectados.\n", datos.clientes.num_elem ());
 
 		/* Se crea el socket de escritura */
 		if ((datos.sock_es = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 		{
-			/* Vacía el contenido de la cadena */
-			log_text.str ("");
-			log_text.clear ();
-
-			log_text << "Error al crear socket de escritura. \n";
-
-			log (log_text.str ());
-
-			close (datos.sock_es);
-			close (datos.sock_lec);
-			continue;
+			printf("Error al crear socket.\n");
+			return -2;
 		}
 
 		/* El cliente envía el número de puerto al que se debe conectar el servidor */
@@ -310,28 +234,16 @@ int main(int argc, char *argv[])
 		/* Se conecta al socket de lectura del servidor */
 		if (connect(datos.sock_es, (struct sockaddr *)&server, sizeof(server)) < 0)
 		{
-			/* Vacía el contenido de la cadena */
-			log_text.str ("");
-			log_text.clear ();
-
-			log_text << "Error al intentar conectarse al socket de lectura del cliente. \n";
-
-			log (log_text.str ());
+			printf("Error al intentar conectarse al socket de lectura del cliente. \n");
 
 			close(datos.sock_lec);
 			close(datos.sock_es);
-			continue;
+			return -2;
 		}
 		else
 		{
-			/* Vacía el contenido de la cadena */
-			log_text.str ("");
-			log_text.clear ();
-
-			log_text << "Conectado al cliente. Ya se puede empezar a intercambiar mensajes. \n";
-			log_text << "++++++++++++++++++++++++++++++++++++++++\n\n";
-
-			log (log_text.str ());
+			printf("Conectado al cliente. Ya puede empezar a intercambiar mensajes. \n");
+			printf("++++++++++++++++++++++++++++++++++++++++\n\n");
 		}
 
 		/* Se añaden los descriptores al array para poll() */
@@ -349,13 +261,7 @@ int main(int argc, char *argv[])
 			/* se crea el hilo encargado de sondear los descriptores */
 			if (pthread_create(&hilos[0], 0, polling, &datos) != 0)
 			{
-				/* Vacía el contenido de la cadena */
-				log_text.str ("");
-				log_text.clear ();
-
-				log_text << "Error al crear el hilo para sondear los descriptores de los clientes.\n";
-
-				log (log_text.str ());
+				printf("Error al crear el hilo nº 0");
 				return -4;
 			}
 
