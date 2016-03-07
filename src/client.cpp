@@ -2,11 +2,48 @@
 
 #include "chat.h"
 
-int sock_es, sock_lec;
+int sock_es,
+    sock_lec;
+
+/* Returns current date/time, with format dd-MM-YYYY.HH:mm:ss */
+const string get_date ()
+{
+        time_t now = time(0);
+        struct tm  tstruct;
+        char buf[80];
+        tstruct = *localtime (&now);
+
+        /* Gives the apropiate format to the string */
+        strftime (buf, sizeof (buf), "%d-%m-%Y.%X", &tstruct);
+
+        return buf;
+}
+
+
+/* Prints a string on the screen and adds it to a text file */
+void log (string text)
+{
+        ofstream output;
+
+        /* Opens the log file and saves the text */
+        output.open ("client.log", ofstream::app | ofstream::out);
+
+        output << "\n+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-";
+        output << "\n" << get_date () << "\n";
+        output << text;
+        output << "\n+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-";
+
+        output.close ();
+
+        /* Prints the text on the screen (stdout) */
+	cout << text;
+}
+
 
 /* Función que ejecutará el hilo encargado de leer del socket */
-void *lectura_socket(void *pv)
+void *lectura_socket (void *pv)
 {
+	ostringstream log_text;
 	datos_hilo *datos = (datos_hilo *) pv;
 
 	char buffer[BUFF_SIZE];
@@ -20,7 +57,12 @@ void *lectura_socket(void *pv)
 		/* Se escribe por pantalla lo leido */
 		if (rval < 0)
 		{
-			printf("Error al leer el mensaje.\n");
+			/* Vacía el contenido de las cadenas */
+			log_text.str ("");
+			log_text.clear ();
+
+			log_text << "Error al leer el mensaje.\n";
+			log (log_text.str ());
 
 			close(datos->sock_lec);
 			break;
@@ -32,8 +74,13 @@ void *lectura_socket(void *pv)
 
 	}
 
+	/* Vacía el contenido de las cadenas */
+	log_text.str ("");
+	log_text.clear ();
+
 	close(datos->sock_lec);
-	printf("\nDesconectado del servidor.\n");
+	log_text << "\nDesconectado del servidor.\n";
+	log (log_text.str ());
 
 	exit(1);
 }
@@ -47,19 +94,24 @@ void *escritura_socket(void *pv)
 
 	char lectura[BUFF_SIZE];
 	string aux;
-	ostringstream mensaje;
+	ostringstream mensaje,
+		      log_text;
 	int r_val;
 
 	/* Una vez se ha conectado correctamente, se comienza el intercambio de información. */
         while (1)
 	{
-		/* Vacía el contenido de la cadena */
+		/* Vacía el contenido de las cadenas */
 		mensaje.str ("");
 		mensaje.clear ();
 
+		log_text.str ("");
+		log_text.clear ();
+
                 if ((r_val = read(0, lectura, BUFF_SIZE)) < 0)
 		{
-                        printf("Error al leer datos del teclado. \n");
+                        log_text << "Error al leer datos del teclado. \n";
+			log (log_text.str ());
 
                         close(datos->sock_es);
                   	break;
@@ -72,13 +124,12 @@ void *escritura_socket(void *pv)
                 /* Se envía a través del socket */
                 if (write(datos->sock_es, mensaje.str().c_str (), mensaje.str().size ()) < 0)
 		{
-                        printf("Error al escribir en el socket. \n");
+                        log_text << "Error al escribir en el socket. \n";
+			log (log_text.str ());
 
                         close(datos->sock_es);
 			break;
                 }
-
-		mensaje.str().erase (0, mensaje.str().size ());
         }
 
 	close(datos->sock_es);
@@ -106,11 +157,14 @@ void sig_handler(int sig)
 
 int main(int argc, char *argv[])
 {
+	ostringstream log_text;
 	u_long addr;
 	int i, opcion = 1, puerto, sock_escucha;
+
 	unsigned int addrlen = sizeof(struct sockaddr_in);
 	struct sockaddr_in server;
 	struct in_addr in;
+
 	struct hostent *host;
 	char **p;
 	/* Variable para los hilos (uno para leer y otro para escribir) */
@@ -118,12 +172,17 @@ int main(int argc, char *argv[])
 	datos.num_hilos = 2;
 	pthread_t hilos[datos.num_hilos];
 
+	/* Fin de la declaración de variables */
+
+
 	/* Llamada correcta:
 		(nombre programa) ip_servidor puerto_servidor */
 	if (argc != 4)
 	{
-		printf("Error. Llamada correcta: \n"
-			"%s ip_servidor puerto_servidor nombre_usuario \n", argv[0]);
+		log_text <<"Error. Llamada correcta: \n"
+			 << argv[0] << " ip_servidor puerto_servidor nombre_usuario \n";
+		log (log_text.str ());
+
 		return -1;
 	}
 
@@ -134,7 +193,8 @@ int main(int argc, char *argv[])
 	if ( ((datos.sock_es = socket(AF_INET, SOCK_STREAM, 0)) < 0) ||
 	     ((sock_escucha = socket(AF_INET, SOCK_STREAM, 0)) < 0))
 	{
-		printf("Error al crear socket.\n");
+		log_text << "Error al crear alguno de los sockets.\n";
+		log (log_text.str ());
 		return -2;
 	}
 
@@ -143,7 +203,10 @@ int main(int argc, char *argv[])
 	/*Cambia del formato notación de punto a formato binario*/
 	if( (addr = inet_addr(argv[1])) == INADDR_NONE)
 	{
-		printf("La dirección IP debe estar en notación x.x.x.x \n");
+		log_text << "La dirección IP " << argv[1] << " no es válida. \n"
+			 << "Debe estar en notación x.x.x.x \n";
+
+		log (log_text.str ());
 
 		close(datos.sock_es);
 		close(sock_escucha);
@@ -154,9 +217,13 @@ int main(int argc, char *argv[])
 	/*Obtiene una estructura hostent con la información del servidor dado en binario.*/
 	host = gethostbyaddr( (char *)&addr, sizeof(addr), AF_INET);
 
+	/* Vacía el contenido de la cadena */
+	log_text.str ("");
+	log_text.clear ();
+
 	if(host == 0)
 	{
-		printf("No se pudo encontrar información sobre el equipo. \n");
+		log_text << "No se pudo encontrar información sobre el equipo. \n";
 		server.sin_addr.s_addr = inet_addr(argv[1]);
 	}
 	else
@@ -171,7 +238,9 @@ int main(int argc, char *argv[])
 	/* Se conecta al socket de lectura del servidor */
 	if (connect(datos.sock_es, (struct sockaddr *)&server, sizeof(server)) < 0)
 	{
-		printf("Error al intentar conectarse al socket de lectura del servidor. \n");
+		log_text << "Error al intentar conectarse al socket de lectura del servidor. \n";
+
+		log (log_text.str ());
 
 		close(sock_escucha);
 		close(datos.sock_es);
@@ -186,12 +255,18 @@ int main(int argc, char *argv[])
 			memcpy(&in.s_addr, *p, sizeof(in.s_addr));
 			/*Pasa el binario de la tabla a in.s_addr porque esa estructura la necesita
 			inet_ntoa, para pasarla a formato notación de punto */
-			printf("Conectado con %s (%s)\n", inet_ntoa(in), host->h_name);
+			log_text << "Conectado con " << inet_ntoa (in) << " (" << host->h_name << ")\n ";
 		}
 	else
-		printf("Conectado con %s (desconocido)\n", inet_ntoa(in));
+		log_text << "Conectado con " << inet_ntoa (in) << " (desconocido)\n";
 
-	printf("\n..............\n");
+	log_text << "\n.................\n";
+
+	log (log_text.str ());
+
+	/* Vacía el contenido de la cadena */
+	log_text.str ("");
+	log_text.clear ();
 
 	/* El cliente ya puede enviar información al servidor, pero ahora el cliente tiene que poner su socket de
 	escucha para establecer la comunicación en sentido inverso */
@@ -200,7 +275,9 @@ int main(int argc, char *argv[])
 	if (setsockopt(sock_escucha, SOL_SOCKET, SO_REUSEADDR, &opcion, sizeof(opcion)) < 0)
 	{
 
-                printf("Error en setsockopt");
+                log_text << "Error en setsockopt";
+		log (log_text.str ());
+
 		close(datos.sock_es);
 		close(sock_escucha);
 		return -2;
@@ -214,7 +291,8 @@ int main(int argc, char *argv[])
 	/* Se asigna la dirección al socket de escucha */
 	if (bind(sock_escucha, (struct sockaddr *)&server, sizeof(server)) < 0)
 	{
-		printf("Error al asignar una dirección al socket de escucha. \n");
+		log_text << "Error al asignar una dirección al socket de escucha. \n";
+		log (log_text.str ());
 
 		close(datos.sock_es);
 		close(sock_escucha);
@@ -222,14 +300,23 @@ int main(int argc, char *argv[])
 	}
 
 	if (getsockname(sock_escucha, (struct sockaddr *)&server, &addrlen) == -1)
-	    perror("getsockame");
+	{
+		log_text << "Error en getsockame ().\n";
+		log (log_text.str ());
+
+		/* Vacía el contenido de la cadena */
+		log_text.str ("");
+		log_text.clear ();
+	}
 
 	puerto = ntohs(server.sin_port);
 
 	/* Se envía al servidor el número de puerto para que pueda conectarse */
 	if (write(datos.sock_es, &puerto, sizeof(int)) < 0)
 	{
-		printf("Error al intentar enviar la información de conexión al servidor. \n");
+		log_text << "Error al intentar enviar la información de conexión al servidor. \n";
+
+		log (log_text.str ());
 
 		close(datos.sock_es);
 		close(sock_escucha);
@@ -237,7 +324,12 @@ int main(int argc, char *argv[])
 	}
 
 	/* Se muestra un mensaje para hacer saber que se ha creado el servidor */
-	printf("Esperando al servidor en el puerto %i... \n", ntohs(puerto));
+	log_text << "Esperando al servidor en el puerto " << ntohs(puerto) << "...\n";
+	log (log_text.str ());
+
+	/* Vacía el contenido de la cadena */
+	log_text.str ("");
+	log_text.clear ();
 
 	/* Se escucha para poder aceptar la conexión entrante del servidor */
 	listen(sock_escucha, 5);
@@ -247,12 +339,20 @@ int main(int argc, char *argv[])
 
 	sock_lec = datos.sock_lec; /* Se incializa la variable global para poder cerrar el socket luego */
 
-	if (datos.sock_lec < 0) {
-		printf("Conexión rechazada. \n");
+	if (datos.sock_lec < 0)
+	{
+		log_text << "Conexión rechazada. \n";
+		log (log_text.str ());
+	}
+	else
+	{
+		log_text << "\nConectado completamente al servidor. Ya puede comenzar el intercambio de información";
+		log_text << "\n-------------------------------------------\n\n";
+		log (log_text.str ());
 
-	} else {
-		printf("\nConectado completamente al servidor. Ya puede comenzar el intercambio de información");
-		printf("\n-------------------------------------------\n\n");
+		/* Vacía el contenido de la cadena */
+		log_text.str ("");
+		log_text.clear ();
 
 		/* Se inicializa el dato para identificar la procedencia los mensajes */
 		datos.user = argv[3];
@@ -262,13 +362,17 @@ int main(int argc, char *argv[])
 		/* El hilo nº 0 lee y el hilo nº 1 escribe (cada uno en el socket correspondiente) */
 		if (pthread_create(&hilos[0], 0, lectura_socket, &datos) != 0)
 		{
-			printf("Error al crear el hilo nº 0");
+			log_text << "Error al crear el hilo nº 0 (encargado de la lectura) \n";
+			log (log_text.str ());
+
 			return -4;
 		}
 
 		if (pthread_create(&hilos[1], 0, escritura_socket, &datos) != 0)
 		{
-			printf("Error al crear el hilo nº 1");
+			log_text << "Error al crear el hilo nº 1 (encargado de la escritura) \n";
+			log (log_text.str ());
+
 			return -4;
 		}
 
@@ -276,7 +380,12 @@ int main(int argc, char *argv[])
 		for(i = 0; i < datos.num_hilos; i++)
 			if(pthread_join(hilos[i], 0) != 0)
 			{
-				printf("Error esperando al hilo %i. \n", i);
+				/* Vacía el contenido de la cadena */
+				log_text.str ("");
+				log_text.clear ();
+
+				log_text << "Error esperando al hilo " << i << ". \n";
+				log (log_text.str ());
 			}
 	}
 

@@ -1,12 +1,14 @@
 /* chat.h */
 #ifndef CHAT_H
 #define CHAT_H
-	#include <iostream>
-	#include <sstream>
-	#include <stdlib.h>
-	#include <string>
 
-	#include "list.h"
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdlib.h>
+#include <string>
+
+#include "list.h"
 
 /* Taken from CAL-v3's chat.h */
 #include <arpa/inet.h>
@@ -33,7 +35,7 @@ typedef struct
 {
 	struct sockaddr_in client;	/* Estructura con la información del cliente */
 
-	char *user;			/* Nombre de usuario (para identificar los mensajes) */
+	string user;			/* Nombre de usuario (para identificar los mensajes) */
 
 	int num_hilos;			/* Número de hilos que se van a crear */
 

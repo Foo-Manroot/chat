@@ -5,13 +5,10 @@ CXXFLAGS = -Wall -pthread -lpthread
 chat: client server
 
 # Builds everything
-all: main client server
+all: client server
 
 # Rules for individual files:
 # ---------------------------------------------------------------
-main: main.o
-	$(CXX) $(CXXFLAGS) -o main main.o
-
 
 # Client executable
 client: client.o
@@ -36,6 +33,5 @@ rebuild: clean all
 # Removes all .o files and the executables generated
 clean:
 	rm -fv *.o
-	rm -fv main
 	rm -fv client
 	rm -fv server
