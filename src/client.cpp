@@ -94,18 +94,13 @@ void *escritura_socket(void *pv)
 
 	char lectura[BUFF_SIZE];
 	string aux;
-<<<<<<< HEAD:src/client.cpp
 	ostringstream mensaje,
 		      log_text;
-=======
-	ostringstream mensaje;
->>>>>>> d8444c6fcd9b958d023cd0af362f0a93642c462d:src/client.cpp
 	int r_val;
 
 	/* Una vez se ha conectado correctamente, se comienza el intercambio de información. */
         while (1)
 	{
-<<<<<<< HEAD:src/client.cpp
 		/* Vacía el contenido de las cadenas */
 		mensaje.str ("");
 		mensaje.clear ();
@@ -113,12 +108,6 @@ void *escritura_socket(void *pv)
 		log_text.str ("");
 		log_text.clear ();
 
-=======
-		/* Vacía el contenido de la cadena */
-		mensaje.str ("");
-		mensaje.clear ();
-
->>>>>>> d8444c6fcd9b958d023cd0af362f0a93642c462d:src/client.cpp
                 if ((r_val = read(0, lectura, BUFF_SIZE)) < 0)
 		{
                         log_text << "Error al leer datos del teclado. \n";
@@ -141,11 +130,6 @@ void *escritura_socket(void *pv)
                         close(datos->sock_es);
 			break;
                 }
-<<<<<<< HEAD:src/client.cpp
-=======
-
-		mensaje.str().erase (0, mensaje.str().size ());
->>>>>>> d8444c6fcd9b958d023cd0af362f0a93642c462d:src/client.cpp
         }
 
 	close(datos->sock_es);
@@ -254,13 +238,9 @@ int main(int argc, char *argv[])
 	/* Se conecta al socket de lectura del servidor */
 	if (connect(datos.sock_es, (struct sockaddr *)&server, sizeof(server)) < 0)
 	{
-<<<<<<< HEAD:src/client.cpp
 		log_text << "Error al intentar conectarse al socket de lectura del servidor. \n";
 
 		log (log_text.str ());
-=======
-		printf("Error al intentar conectarse al socket de lectura del servidor. \n");
->>>>>>> d8444c6fcd9b958d023cd0af362f0a93642c462d:src/client.cpp
 
 		close(sock_escucha);
 		close(datos.sock_es);
