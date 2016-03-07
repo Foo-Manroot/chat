@@ -26,10 +26,10 @@ void log (string text)
 	/* Opens the log file and saves the text */
 	output.open ("server.log", ofstream::app | ofstream::out);
 
-	output << "\n--------------------------------------";
+	output << "\n+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-";
 	output << "\n" << get_date () << "\n";
 	output << text;
-	output << "\n";
+	output << "\n+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-";
 
 	output.close ();
 
