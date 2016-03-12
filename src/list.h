@@ -22,7 +22,7 @@ using namespace std;
 #define LIST_ERR_NOT_FOUND      -2      /* The searched item is not in the list */
 
 /* Generic errors */
-#define UNKNOWN_ERR             -10     /* An error which cause is unknown */
+#define UNKNOWN_ERR             -10     /* An error caused by an unknown behavior */
 
 
 /*
